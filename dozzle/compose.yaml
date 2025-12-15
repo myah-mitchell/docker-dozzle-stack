@@ -114,8 +114,6 @@ services:
 
 networks:
   frontend:
-    name: ${TRAEFIK_NETWORK}
-    external: true
   socket_proxy:
     internal: true
     driver_opts:
