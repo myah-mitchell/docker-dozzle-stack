@@ -53,9 +53,6 @@ services:
       <<: *default-environment
       DOCKER_HOST: tcp://${PROJECT_NAME}.socket-proxy:2375
       DOZZLE_HOSTNAME: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
-    #labels: ## WUD Labels
-    #  #- 'wud.tag.include=^\d+\.\d+\.\d+$$'
-    #  #- 'wud.link.template=https://github.com/amir20/dozzle/releases/tag/v$${major}.$${minor}.$${patch}'
     networks:
       - frontend
       - socket_proxy
