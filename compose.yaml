@@ -124,6 +124,8 @@ services:
 
 networks:
   frontend:
+    name: ${PROXY_NETWORK}
+    external: true
   socket_proxy:
     internal: true
     driver_opts:
