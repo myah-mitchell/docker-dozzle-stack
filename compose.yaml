@@ -65,7 +65,8 @@ services:
         Host(`${SERVICE_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`) ||
         Host(`${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`)"
         ## Middlewares
-      - "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-no-auth@file"
+      #- "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-authentik@file"
         ## HTTP Services
       - "traefik.http.services.$PROJECT_NAME-svc.loadbalancer.server.port=8080"
     networks:
