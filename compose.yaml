@@ -117,7 +117,7 @@ services:
         ## HTTP Services
       - "traefik.http.services.$PROJECT_NAME-svc.loadbalancer.server.port=8080"
     networks:
-      - proxy
+      #- proxy
       - frontend
       - socket_proxy
     depends_on:
