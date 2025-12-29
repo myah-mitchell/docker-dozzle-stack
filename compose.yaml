@@ -1,48 +1,95 @@
-x-usage: &default-usage
+###############################################################################
+# Start of default configs
+###############################################################################
+
+  #####################################
+  # Container base defaults
+  #####################################
   # Max Usage Limits
+x-limits: &limits
   mem_limit: ${MEM_LIMIT:-2G} # Override per container if necessary
   memswap_limit: ${MEM_SWAP_LIMIT:-2.5G}
   mem_reservation: ${MEM_RESERVATION:-64M}
   pids_limit: ${PIDS_LIMIT:-200}
   cpus: ${CPUS_LIMIT:-2} # Set below the total number of cores, for example 3.5 for 4 cores
 
-x-restart: &default-restart
   # Restart Settings
+x-restart: &restart
   stop_grace_period: ${RESTART_GRACE:-1m}
   restart: ${RESTART_MODE:-unless-stopped}
 
-x-security: &default-security
-  # Configure User and Security Opts
-  user: ${PUID:-1000}:${PGID:-1000}
+  # Configure security
+x-security: &security
   security_opt:
-   - no-new-privileges=true
-x-logging: &default-logging
+   - no-new-privileges=${NO_NEW_PRIVILEGES:-true}
+
+  # Configure User
+x-user: &user
+  user: ${PUID:-1000}:${PGID:-1000}
+
   # Configure Logging
+x-logging: &logging
   logging:
     options:
       max-size: ${LOG_MAX_SIZE:-10m}
       max-file: ${LOG_MAX_FILE:-3}
 
+  ## All base defaults in one
 x-base: &default-base
-  <<: [*default-usage, *default-restart, *default-security, *default-logging]
+  <<: [*limits, *restart, *security, *user, *logging]
 
-x-healthcheck: &default-healthcheck
+  #####################################
+  # Container healthcheck defaults
+  #####################################
+x-healthcheck: &default_healthcheck
   interval: ${HEALTH_INTERVAL:-60s}
   timeout: ${HEALTH_TIMEOUT:-10s}
   retries: ${HEALTH_RETRIES:-5}
   start_period: ${HEALTH_START:-10s}
-
-x-environment: &default-environment
+  
+  #####################################
+  # Container environment defaults
+  #####################################
+x-environment-tz: &environment_tz
   TZ: ${TZ:-America/Chicago}
+
+x-environment-user: &environment_user
   PUID: ${PUID:-1000}
   PGID: ${PGID:-1000}
- 
-# Compose Project Name
+
+  ## All environment defaults in one
+x-environment: &default_environment
+  <<: [*environment_tz, *environment_user]
+
+###############################################################################
+# Start of stack config
+###############################################################################
+# Project Name
 name: ${PROJECT_NAME}
+
+networks:
+  proxy:
+    name: ${PROXY_NETWORK}
+    internal: true
+  frontend:
+    name: ${PROJECT_NAME}_frontend
+    internal: false
+    driver_opts:
+      encrypted: "true"
+#  backend:
+#    name: ${PROJECT_NAME}_backend
+#    internal: true
+#    driver_opts:
+#      encrypted: "true"
+  socket_proxy:
+    name: ${PROJECT_NAME}_socket_proxy
+    internal: true
+    driver_opts:
+      encrypted: "true"
 
 services:
   dozzle:
-    <<: [*default-usage, *default-restart, *default-logging]
+    <<: [*limits, *restart, *security, *user, *logging]
     image: amir20/dozzle:${DOZZLE_VERSION:-latest}
     hostname: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
     container_name: ${PROJECT_NAME}
@@ -51,8 +98,8 @@ services:
     #  - "8080:8080"
       - "7007:7007"
     environment:
-      <<: *default-environment
-      DOCKER_HOST: tcp://${PROJECT_NAME}.socket-proxy:2375
+      <<: [*environment_tz, *environment_user]
+      DOCKER_HOST: tcp://${PROJECT_NAME}-socket-proxy:2375
       DOZZLE_HOSTNAME: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
       DOZZLE_REMOTE_AGENT: ${DOZZLE_REMOTE_AGENT}
     labels: ## Traefik Labels
@@ -70,6 +117,7 @@ services:
         ## HTTP Services
       - "traefik.http.services.$PROJECT_NAME-svc.loadbalancer.server.port=8080"
     networks:
+      - proxy
       - frontend
       - socket_proxy
     depends_on:
@@ -77,14 +125,15 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/dozzle", "healthcheck"]
-      <<: *default-healthcheck
+      <<: *default_healthcheck
 
   socket-proxy:
-    <<: [*default-usage, *default-restart, *default-logging]
+    <<: [*limits, *restart, *security, *logging]
     image: lscr.io/linuxserver/socket-proxy:${SOCKET_PROXY_VERSION:-latest}
-    container_name: "${PROJECT_NAME}.socket-proxy"
+    hostname: ${PROJECT_NAME}-socket-proxy.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}
+    container_name: "${PROJECT_NAME}-socket-proxy"
     environment:
-      <<: *default-environment
+      <<: [*environment_tz, *environment_user]
       ALLOW_START: 0 #optional
       ALLOW_STOP: 0 #optional
       ALLOW_RESTARTS: 0 #optional
@@ -115,22 +164,12 @@ services:
       VOLUMES: 0 #optional
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    userns_mode: "host"
     networks:
       - socket_proxy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:2375/version"]
-      <<: *default-healthcheck
+    userns_mode: "host"
     read_only: true
     tmpfs:
       - /run
-
-networks:
-  frontend:
-    name: ${PROXY_NETWORK}
-    external: true
-  socket_proxy:
-    internal: true
-    driver_opts:
-      encrypted: "true"
-
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:2375/version"]
+      <<: *default_healthcheck
