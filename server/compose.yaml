@@ -116,9 +116,9 @@ services:
       - proxy
       - frontend
       #- socket_proxy
-    depends_on:
-      socket-proxy:
-        condition: service_healthy
+#    depends_on:
+#      socket-proxy:
+#        condition: service_healthy
     healthcheck:
       test: ["CMD", "/dozzle", "healthcheck"]
       <<: *default_healthcheck
