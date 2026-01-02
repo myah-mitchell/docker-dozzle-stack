@@ -99,7 +99,7 @@ services:
     environment:
       <<: [*environment_tz, *environment_user]
       DOCKER_HOST: tcp://${PROJECT_NAME}-socket-proxy:2375
-      DOZZLE_HOSTNAME: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
+      DOZZLE_HOSTNAME: ${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
     networks:
       - frontend
       - socket_proxy
