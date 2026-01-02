@@ -68,9 +68,9 @@ x-environment: &default_environment
 name: ${PROJECT_NAME}
 
 networks:
-  proxy:
-    name: ${PROXY_NETWORK}
-    external: true
+# proxy:
+#   name: ${PROXY_NETWORK}
+#   external: true
   frontend:
     name: ${PROJECT_NAME}_frontend
     internal: false
@@ -95,29 +95,12 @@ services:
     container_name: ${PROJECT_NAME}
     command: agent
     ports:
-    #  - "8080:8080"
       - "7007:7007"
     environment:
       <<: [*environment_tz, *environment_user]
       DOCKER_HOST: tcp://${PROJECT_NAME}-socket-proxy:2375
-      DOZZLE_HOSTNAME: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
-      DOZZLE_REMOTE_AGENT: ${DOZZLE_REMOTE_AGENT:-}
-    labels: ## Traefik Labels
-      - "traefik.enable=false"
-      - "traefik.docker.network=${PROXY_NETWORK}"
-        ## HTTP Routers
-      - "traefik.http.routers.$PROJECT_NAME-rtr.rule=
-        Host(`${SERVICE_NAME}.${DOMAIN_NAME}`) ||
-        Host(`${SERVICE_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`) ||
-        Host(`${SERVICE_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`) ||
-        Host(`${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`)"
-        ## Middlewares
-      #- "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-no-auth@file"
-      - "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-authentik@file"
-        ## HTTP Services
-      - "traefik.http.services.$PROJECT_NAME-svc.loadbalancer.server.port=8080"
+      DOZZLE_HOSTNAME: ${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
     networks:
-      #- proxy
       - frontend
       - socket_proxy
     depends_on:
