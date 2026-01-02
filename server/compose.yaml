@@ -68,9 +68,9 @@ x-environment: &default_environment
 name: ${PROJECT_NAME}
 
 networks:
-# proxy:
-#   name: ${PROXY_NETWORK}
-#   external: true
+  proxy:
+    name: ${PROXY_NETWORK}
+    external: true
   frontend:
     name: ${PROJECT_NAME}_frontend
     internal: false
@@ -93,16 +93,29 @@ services:
     image: amir20/dozzle:${DOZZLE_VERSION:-latest}
     hostname: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
     container_name: ${PROJECT_NAME}
-    command: agent
-    ports:
-      - "7007:7007"
     environment:
       <<: [*environment_tz, *environment_user]
-      DOCKER_HOST: tcp://${PROJECT_NAME}-socket-proxy:2375
+      #DOCKER_HOST: tcp://${PROJECT_NAME}-socket-proxy:2375
       DOZZLE_HOSTNAME: ${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}  
+      DOZZLE_REMOTE_AGENT: ${DOZZLE_REMOTE_AGENT:-}
+    labels: ## Traefik Labels
+      - "traefik.enable=true"
+      - "traefik.docker.network=${PROXY_NETWORK}"
+        ## HTTP Routers
+      - "traefik.http.routers.$PROJECT_NAME-rtr.rule=
+        Host(`${SERVICE_NAME}.${DOMAIN_NAME}`) ||
+        Host(`${SERVICE_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`) ||
+        Host(`${SERVICE_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`) ||
+        Host(`${PROJECT_NAME}.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}`)"
+        ## Middlewares
+      #- "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.$PROJECT_NAME-rtr.middlewares=chain-authentik@file"
+        ## HTTP Services
+      - "traefik.http.services.$PROJECT_NAME-svc.loadbalancer.server.port=8080"
     networks:
+      - proxy
       - frontend
-      - socket_proxy
+      #- socket_proxy
     depends_on:
       socket-proxy:
         condition: service_healthy
@@ -110,49 +123,49 @@ services:
       test: ["CMD", "/dozzle", "healthcheck"]
       <<: *default_healthcheck
 
-  socket-proxy:
-    <<: [*limits, *restart, *security, *logging]
-    image: lscr.io/linuxserver/socket-proxy:${SOCKET_PROXY_VERSION:-latest}
-    hostname: ${PROJECT_NAME}-socket-proxy.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}
-    container_name: "${PROJECT_NAME}-socket-proxy"
-    environment:
-      <<: [*environment_tz, *environment_user]
-      ALLOW_START: 0 #optional
-      ALLOW_STOP: 0 #optional
-      ALLOW_RESTARTS: 0 #optional
-      AUTH: 0 #optional
-      BUILD: 0 #optional
-      COMMIT: 0 #optional
-      CONFIGS: 0 #optional
-      CONTAINERS: 1 #optional
-      DISABLE_IPV6: 0 #optional
-      DISTRIBUTION: 0 #optional
-      EVENTS: 1 #optional
-      EXEC: 0 #optional
-      IMAGES: 0 #optional
-      INFO: 1 #optional
-      LOG_LEVEL: info #optional
-      NETWORKS: 0 #optional
-      NODES: 0 #optional
-      PING: 1 #optional
-      PLUGINS: 0 #optional
-      POST: 0 #optional
-      SECRETS: 0 #optional
-      SERVICES: 0 #optional
-      SESSION: 0 #optional
-      SWARM: 0 #optional
-      SYSTEM: 0 #optional
-      TASKS: 0 #optional
-      VERSION: 1 #optional
-      VOLUMES: 0 #optional
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - socket_proxy
-    userns_mode: "host"
-    read_only: true
-    tmpfs:
-      - /run
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:2375/version"]
-      <<: *default_healthcheck
+#  socket-proxy:
+#    <<: [*limits, *restart, *security, *logging]
+#    image: lscr.io/linuxserver/socket-proxy:${SOCKET_PROXY_VERSION:-latest}
+#    hostname: ${PROJECT_NAME}-socket-proxy.${SERVER_NAME}.${SUB_DOMAIN_NAME}${DOMAIN_NAME}
+#    container_name: "${PROJECT_NAME}-socket-proxy"
+#    environment:
+#      <<: [*environment_tz, *environment_user]
+#      ALLOW_START: 0 #optional
+#      ALLOW_STOP: 0 #optional
+#      ALLOW_RESTARTS: 0 #optional
+#      AUTH: 0 #optional
+#      BUILD: 0 #optional
+#      COMMIT: 0 #optional
+#      CONFIGS: 0 #optional
+#      CONTAINERS: 1 #optional
+#      DISABLE_IPV6: 0 #optional
+#      DISTRIBUTION: 0 #optional
+#      EVENTS: 1 #optional
+#      EXEC: 0 #optional
+#      IMAGES: 0 #optional
+#      INFO: 1 #optional
+#      LOG_LEVEL: info #optional
+#      NETWORKS: 0 #optional
+#      NODES: 0 #optional
+#      PING: 1 #optional
+#      PLUGINS: 0 #optional
+#      POST: 0 #optional
+#      SECRETS: 0 #optional
+#      SERVICES: 0 #optional
+#      SESSION: 0 #optional
+#      SWARM: 0 #optional
+#      SYSTEM: 0 #optional
+#      TASKS: 0 #optional
+#      VERSION: 1 #optional
+#      VOLUMES: 0 #optional
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock:ro
+#    networks:
+#      - socket_proxy
+#    userns_mode: "host"
+#    read_only: true
+#    tmpfs:
+#      - /run
+#    healthcheck:
+#      test: ["CMD", "wget", "--spider", "http://localhost:2375/version"]
+#      <<: *default_healthcheck
